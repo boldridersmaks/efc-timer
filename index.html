@@ -1,115 +1,72 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Futsal Timer</title>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EFC Timer</title>
+  <meta charset="UTF-8">
   <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      padding: 2rem;
-    }
-    #display {
-      font-size: 5em;
-      margin-bottom: 1em;
-    }
-    button {
-      font-size: 1.5em;
-      margin: 0.5em;
-      padding: 0.5em 1.5em;
-    }
+    body { font-family: Arial, sans-serif; text-align: center; padding-top: 50px; }
+    #timer { font-size: 48px; margin-bottom: 20px; }
+    button { font-size: 20px; padding: 10px 20px; margin: 5px; }
   </style>
 </head>
 <body>
-  <h1>Futsal Timer</h1>
-  <div id="display">00:00</div>
+  <h1>EFC Timer</h1>
+  <div id="timer">0:00</div>
   <button onclick="startTimer()">Start</button>
   <button onclick="pauseTimer()">Pause</button>
   <button onclick="stopTimer()">Stop</button>
 
   <script>
-    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwOdDwW7KBW9Ny67Mks3TgcRJzFlVO_PsQ-qxageOUwY8ncsdd2CV6hV7CzfIzzY9r-sA/exec";
-
-    let startTime = 0;
-    let elapsed = 0;
+    let startTime;
+    let elapsedTime = 0;
     let timerInterval;
-    let running = false;
+    const timerDisplay = document.getElementById("timer");
 
-    function formatElapsedTime(ms) {
-      const totalSeconds = Math.floor(ms / 1000);
-      const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-      const seconds = String(totalSeconds % 60).padStart(2, '0');
-      return `${minutes}:${seconds}`;
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbwOdDwW7KBW9Ny67Mks3TgcRJzFlVO_PsQ-qxageOUwY8ncsdd2CV6hV7CzfIzzY9r-sA/exec';
+
+    function timeToString(time) {
+      const diffInSec = Math.floor(time / 1000);
+      const minutes = Math.floor(diffInSec / 60);
+      const seconds = diffInSec % 60;
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
     }
 
-    function updateDisplay() {
-      const now = Date.now();
-      const diff = now - startTime + elapsed;
-      document.getElementById("display").innerText = formatElapsedTime(diff);
+    function print(txt) {
+      timerDisplay.innerHTML = txt;
     }
 
     function startTimer() {
-      if (running) return;
-      running = true;
-      startTime = Date.now();
-      timerInterval = setInterval(updateDisplay, 500);
+      startTime = Date.now() - elapsedTime;
+      timerInterval = setInterval(() => {
+        elapsedTime = Date.now() - startTime;
+        print(timeToString(elapsedTime));
+      }, 1000);
     }
 
     function pauseTimer() {
-      if (!running) return;
-      running = false;
       clearInterval(timerInterval);
-      const now = Date.now();
-      elapsed += now - startTime;
-
-      const elapsedTimeFormatted = formatElapsedTime(elapsed);
-
-      fetch(SCRIPT_URL, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "pause",
-          elapsedTime: elapsedTimeFormatted
-        }),
-        headers: {
-          "Content-Type": "application/json"
-        }
-      })
-      .then(response => response.text())
-      .then(result => {
-        console.log("Pause sent:", result);
-      })
-      .catch(error => {
-        console.error("Error in pause:", error);
-      });
+      sendToSheet("Pause");
     }
 
     function stopTimer() {
-      if (!running) return;
-      running = false;
       clearInterval(timerInterval);
-      const now = Date.now();
-      elapsed += now - startTime;
+      sendToSheet("Stop");
+      elapsedTime = 0;
+      print("0:00");
+    }
 
-      const elapsedTimeFormatted = formatElapsedTime(elapsed);
-
-      fetch(SCRIPT_URL, {
-        method: "POST",
+    function sendToSheet(action) {
+      fetch(scriptURL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: "stop",
-          elapsedTime: elapsedTimeFormatted
-        }),
-        headers: {
-          "Content-Type": "application/json"
-        }
+          action: action,
+          elapsedTime: timeToString(elapsedTime)
+        })
       })
       .then(response => response.text())
-      .then(result => {
-        console.log("Stop sent:", result);
-      })
-      .catch(error => {
-        console.error("Error in stop:", error);
-      });
+      .then(result => console.log("Success:", result))
+      .catch(error => console.error("Error:", error));
     }
   </script>
 </body>
