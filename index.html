@@ -1,85 +1,59 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Futsal Timer</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      text-align: center;
-      margin-top: 50px;
-    }
-    #timeDisplay {
-      font-size: 48px;
-      margin-bottom: 20px;
-    }
-    button {
-      font-size: 18px;
-      margin: 5px;
-      padding: 10px 20px;
-    }
-  </style>
+  <title>Stopwatch</title>
 </head>
 <body>
-  <h1>Futsal Timer</h1>
-  <div id="timeDisplay">00:00</div>
+  <h1>Stopwatch</h1>
+  <div id="timer">00:00</div>
   <button onclick="startTimer()">Start</button>
   <button onclick="pauseTimer()">Pause</button>
   <button onclick="stopTimer()">Stop</button>
 
   <script>
-    let startTime;
-    let elapsedTime = 0;
-    let timerInterval;
+    let startTime, elapsed = 0, timerInterval;
 
-    function updateDisplay() {
-      const totalSeconds = Math.floor(elapsedTime / 1000);
-      const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
-      const seconds = String(totalSeconds % 60).padStart(2, '0');
-      document.getElementById("timeDisplay").innerText = minutes + ":" + seconds;
+    function updateTimer() {
+      const now = Date.now();
+      const diff = Math.floor((now - startTime + elapsed) / 1000);
+      const minutes = String(Math.floor(diff / 60)).padStart(2, '0');
+      const seconds = String(diff % 60).padStart(2, '0');
+      document.getElementById('timer').textContent = `${minutes}:${seconds}`;
     }
 
     function startTimer() {
-      startTime = Date.now() - elapsedTime;
-      timerInterval = setInterval(() => {
-        elapsedTime = Date.now() - startTime;
-        updateDisplay();
-      }, 1000);
+      startTime = Date.now();
+      timerInterval = setInterval(updateTimer, 1000);
     }
 
     function pauseTimer() {
       clearInterval(timerInterval);
-      sendToSheet("Pause");
+      elapsed += Date.now() - startTime;
     }
 
     function stopTimer() {
       clearInterval(timerInterval);
-      sendToSheet("Stop");
-      elapsedTime = 0;
-      updateDisplay();
-    }
-
-    function sendToSheet(action) {
-      const totalSeconds = Math.floor(elapsedTime / 1000);
+      const totalSeconds = Math.floor((Date.now() - startTime + elapsed) / 1000);
       const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, '0');
       const seconds = String(totalSeconds % 60).padStart(2, '0');
-      const formattedTime = minutes + ":" + seconds;
+      const formattedTime = `${minutes}:${seconds}`;
 
+      // Kirim data ke Google Sheets via Web App
       fetch("https://script.google.com/macros/s/AKfycbwOdDwW7KBW9Ny67Mks3TgcRJzFlVO_PsQ-qxageOUwY8ncsdd2CV6hV7CzfIzzY9r-sA/exec", {
         method: "POST",
+        body: JSON.stringify({
+          action: "Stop",
+          elapsedTime: formattedTime
+        }),
         headers: {
           "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          action: action,
-          elapsedTime: formattedTime
-        })
+        }
       })
-      .then(res => res.text())
-      .then(msg => alert("Timer sent: " + formattedTime))
-      .catch(err => alert("Error: " + err));
+      .then(response => response.text())
+      .then(data => alert("Timer stopped and sent: " + formattedTime))
+      .catch(error => alert("Error: " + error));
     }
   </script>
 </body>
